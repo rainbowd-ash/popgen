@@ -1,11 +1,29 @@
-import argparse, random
+import argparse, random, re
 import numpy as np
 import sounddevice as sd
+
+# 11 canonical note names.
+names = [ "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", ]
+
+note_names = { s : i for i, s in enumerate(names) }
+
+note_name_re = re.compile(r"([A-G]b?)(\[([0-8])\])?")
+
+def parse_note(s):
+    m = note_name_re.fullmatch(s)
+    if m is None:
+        raise ValueError
+    s = m[1]
+    q = 4
+    if m[3] is not None:
+        q = int(m[3])
+    return note_names[s] + 12 * q
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--bpm', type=int, default=90)
 ap.add_argument('--samplerate', type=int, default=48_000)
-ap.add_argument("--test", action="store_true")
+ap.add_argument('--root', type=parse_note, default="Eb[4]")
+ap.add_argument("--test", action="store_true", help=argparse.SUPPRESS)
 args = ap.parse_args()
 
 # Tempo in beats per minute.
@@ -36,7 +54,7 @@ def chord_to_note_offset(posn):
     return posn // 3 * 7 + major_chord[chord_posn] - 1
 
 # MIDI key where melody goes.
-melody_root = 63
+melody_root = args.root
 
 # Bass MIDI key is below melody root.
 bass_root = melody_root - 24
