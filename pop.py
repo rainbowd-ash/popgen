@@ -17,22 +17,6 @@ samplerate = args.samplerate
 # Samples per beat.
 beat_samples = int(np.round(samplerate / (bpm / 60)))
 
-# The 11 notes and their names.
-names = {
-     0 : "C",
-     1 : "D♭",
-     2 : "D",
-     3 : "E♭",
-     4 : "E",
-     5 : "F",
-     6 : "G♭",
-     7 : "G",
-     8 : "A♭",
-     9 : "A",
-    10 : "B♭",
-    11 : "B",
-}
-
 # Relative notes of a major scale.
 major_scale = [0, 2, 4, 5, 7, 9, 11]
 
@@ -51,27 +35,25 @@ def chord_to_note_offset(posn):
     chord_posn = posn % 3
     return posn // 3 * 7 + major_chord[chord_posn] - 1
 
-# MIDI key C[5] is where melody goes.
-melody_root = 60
+# MIDI key where melody goes.
+melody_root = 63
 
-# Bass MIDI key is two octaves down.
+# Bass MIDI key is below melody root.
 bass_root = melody_root - 24
 
 # Root note offset for each chord in scale tones — one-based.
 chord_loop = [8, 5, 6, 4]
 
 position = 0
-def pick_notes(bar, n=4):
+def pick_notes(chord_root, n=4):
     global position
     p = position
 
-    chord_root = chord_loop[bar] - 1
     notes = []
     for _ in range(n):
         chord_note_offset = chord_to_note_offset(p)
         chord_note = note_to_key_offset(chord_root + chord_note_offset)
-        next_note = melody_root + chord_note
-        notes.append(next_note)
+        notes.append(chord_note)
 
         if random.random() > 0.5:
             p = p + 1
@@ -89,7 +71,7 @@ def make_note(key, n=1):
     return np.sin(t)
 
 def play(sound):
-    sd.play(sound, samplerate=samplerate, blocking=True)
+    sd.play(sound.astype(np.float32), samplerate=samplerate, blocking=True)
         
 if args.test:
     note_tests = [
@@ -127,25 +109,14 @@ if args.test:
 
     exit(0)
     
-sound = np.array([], dtype=np.float32)
-for c in range(len(chord_loop)):
-    print(c, ':')
-    notes = pick_notes(c)
-    print('notes', notes)
-    melody = np.concatenate(list(make_note(i) for i in notes))
+sound = np.array([], dtype=np.float64)
+for c in chord_loop:
+    notes = pick_notes(c - 1)
+    melody = np.concatenate(list(make_note(i + melody_root) for i in notes))
 
-#    bass_note = chord_loop[c] - 1
-#    if bass_note < 7:
-#        offset = 0
-#    else:
-#        bass_note -= 8
-#        offset = 12
-#    print('bass', bass_note)
-#    bass_key = bass_root + major_scale[bass_note] + offset
-#    bass = make_note(bass_key, n=4)
+    bass_note = note_to_key_offset(c - 1)
+    bass = make_note(bass_note + bass_root, n=4)
 
-    sound = np.append(sound, melody)
+    sound = np.append(sound, 0.4 * melody + 0.6 * bass)
 
-play(sound)
-
-
+play(0.6 * sound)
