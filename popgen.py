@@ -1,4 +1,4 @@
-import argparse, random, re
+import argparse, random, re, wave
 import numpy as np
 import sounddevice as sd
 
@@ -14,6 +14,7 @@ def parse_note(s):
     if m is None:
         raise ValueError
     s = m[1]
+    s = s[0].upper() + s[1:]
     q = 4
     if m[3] is not None:
         q = int(m[3])
@@ -22,7 +23,9 @@ def parse_note(s):
 ap = argparse.ArgumentParser()
 ap.add_argument('--bpm', type=int, default=90)
 ap.add_argument('--samplerate', type=int, default=48_000)
-ap.add_argument('--root', type=parse_note, default="Eb[4]")
+ap.add_argument('--root', type=parse_note, default="C[5]")
+ap.add_argument('--bass-octave', type=int, default=2)
+ap.add_argument('--output')
 ap.add_argument("--test", action="store_true", help=argparse.SUPPRESS)
 args = ap.parse_args()
 
@@ -57,7 +60,7 @@ def chord_to_note_offset(posn):
 melody_root = args.root
 
 # Bass MIDI key is below melody root.
-bass_root = melody_root - 24
+bass_root = melody_root - 12 * args.bass_octave
 
 # Root note offset for each chord in scale tones — one-based.
 chord_loop = [8, 5, 6, 4]
@@ -133,8 +136,21 @@ for c in chord_loop:
     melody = np.concatenate(list(make_note(i + melody_root) for i in notes))
 
     bass_note = note_to_key_offset(c - 1)
+    print(bass_note + bass_root)
     bass = make_note(bass_note + bass_root, n=4)
 
     sound = np.append(sound, 0.4 * melody + 0.6 * bass)
 
-play(0.6 * sound)
+if args.output:
+    output = wave.open(args.output, "wb")
+    output.setnchannels(1)
+    output.setsampwidth(2)
+    output.setframerate(samplerate)
+    output.setnframes(len(sound))
+
+    data = (0.6 * 32767 * sound).astype(np.int16)
+    output.writeframesraw(data)
+
+    output.close()
+else:
+    play(0.6 * sound)
