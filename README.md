@@ -1,4 +1,4 @@
-# pop: generate a pop loop
+# popgen: play a pop music loop
 Bart Massey 2024
 
 [Yes, I am ashamed of this. But my audio class…]
