@@ -89,7 +89,7 @@ def make_note(key, n=1):
     return np.sin(t)
 
 def play(sound):
-    sd.play(sound.astype(np.float32), samplerate=samplerate, blocking=True)
+    sd.play(sound, samplerate=samplerate, blocking=True)
         
 if args.test:
     note_tests = [
