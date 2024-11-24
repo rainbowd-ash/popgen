@@ -20,11 +20,35 @@ def parse_note(s):
         q = int(m[3])
     return note_names[s] + 12 * q
 
+def parse_log_knob(k, db_at_zero=-40):
+    v = float(k)
+    if v < 0 or v > 10:
+        raise ValueError
+    if v < 0.1:
+        return 0
+    if v > 9.9:
+        return 10
+    return 10**(-db_at_zero * (v - 10) / 200)
+
+def parse_balance_knob(k):
+    v = float(k)
+    if v < 0 or v > 10:
+        raise ValueError
+    return v / 10
+
+def parse_db(d):
+    v = float(d)
+    if v > 0:
+        raise ValueError
+    return 10**(v / 20)
+
 ap = argparse.ArgumentParser()
 ap.add_argument('--bpm', type=int, default=90)
 ap.add_argument('--samplerate', type=int, default=48_000)
 ap.add_argument('--root', type=parse_note, default="C[5]")
 ap.add_argument('--bass-octave', type=int, default=2)
+ap.add_argument('--balance', type=parse_balance_knob, default="5")
+ap.add_argument('--gain', type=parse_db, default="-3")
 ap.add_argument('--output')
 ap.add_argument("--test", action="store_true", help=argparse.SUPPRESS)
 args = ap.parse_args()
@@ -139,7 +163,10 @@ for c in chord_loop:
     print(bass_note + bass_root)
     bass = make_note(bass_note + bass_root, n=4)
 
-    sound = np.append(sound, 0.4 * melody + 0.6 * bass)
+    melody_gain = args.balance
+    bass_gain = 1 - melody_gain
+
+    sound = np.append(sound, melody_gain * melody + bass_gain * bass)
 
 if args.output:
     output = wave.open(args.output, "wb")
@@ -148,9 +175,9 @@ if args.output:
     output.setframerate(samplerate)
     output.setnframes(len(sound))
 
-    data = (0.6 * 32767 * sound).astype(np.int16)
-    output.writeframesraw(data)
+    data = args.gain * 32767 * sound.clip(-1, 1)
+    output.writeframesraw(data.astype(np.int16))
 
     output.close()
 else:
-    play(0.6 * sound)
+    play(args.gain * sound)
