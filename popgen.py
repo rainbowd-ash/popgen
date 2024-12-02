@@ -67,7 +67,9 @@ ap.add_argument('--root', type=parse_note, default="C[5]")
 ap.add_argument('--bass-octave', type=int, default=2)
 ap.add_argument('--balance', type=parse_linear_knob, default="5")
 ap.add_argument('--gain', type=parse_db, default="-3")
-ap.add_argument('--wavestyle', type=str, choices=['sine', 'square', 'triangle', 'sawtooth'], default='sine')
+ap.add_argument('--wavestyle', type=str, 
+    choices=['sine', 'square', 'triangle', 'sawtooth', 'white_noise', 'pink_noise'], 
+    default='sine')
 ap.add_argument('--output')
 ap.add_argument("--test", action="store_true", help=argparse.SUPPRESS)
 args = ap.parse_args()
@@ -142,6 +144,21 @@ def make_note(key, n=1, wave_style='sine'):
         return 2 * np.abs(2 * (t / (2 * np.pi) - np.floor(t / (2 * np.pi) + 0.5))) - 1
     elif wave_style == 'sawtooth':
         return 2 * (t / (2 * np.pi) - np.floor(0.5 + t / (2 * np.pi)))
+    elif wave_style == 'white_noise':
+        return np.random.uniform(-1, 1, b)
+    elif wave_style == 'pink_noise':
+        # Voss-McCartney algorithm
+        white_noise = np.random.uniform(-1, 1, b)
+        pink_noise = np.zeros(b)
+        octave_vals = np.zeros(int(np.log2(b)) + 1)
+        for i in range(b):
+            update_mask = (i & (i - 1)) == 0
+            if update_mask:
+                white_noise_pos = int(np.log2(i+1))
+                octave_vals[white_noise_pos] = np.random.uniform(-1, 1)
+            pink_noise[i] = np.sum(octave_vals)
+        # Normalize
+        return pink_noise / np.max(np.abs(pink_noise))
     else:
         raise ValueError(f"Bad wave style: {wave_style}")
 
