@@ -67,6 +67,7 @@ ap.add_argument('--root', type=parse_note, default="C[5]")
 ap.add_argument('--bass-octave', type=int, default=2)
 ap.add_argument('--balance', type=parse_linear_knob, default="5")
 ap.add_argument('--gain', type=parse_db, default="-3")
+ap.add_argument('--wavestyle', type=str, choices=['sine', 'square', 'triangle', 'sawtooth'], default='sine')
 ap.add_argument('--output')
 ap.add_argument("--test", action="store_true", help=argparse.SUPPRESS)
 args = ap.parse_args()
@@ -128,12 +129,21 @@ def pick_notes(chord_root, n=4):
 
 # Given a MIDI key number and an optional number of beats of
 # note duration, return a sine wave for that note.
-def make_note(key, n=1):
+def make_note(key, n=1, wave_style='sine'):
     f = 440 * 2 ** ((key - 69) / 12)
     b = beat_samples * n
-    cycles = 2 * np.pi * f * b / samplerate
-    t = np.linspace(0, cycles, b)
-    return np.sin(t)
+    t = np.linspace(0, 2 * np.pi * f * b / samplerate, b)
+    
+    if wave_style == 'sine':
+        return np.sin(t)
+    elif wave_style == 'square':
+        return np.sign(np.sin(t))
+    elif wave_style == 'triangle':
+        return 2 * np.abs(2 * (t / (2 * np.pi) - np.floor(t / (2 * np.pi) + 0.5))) - 1
+    elif wave_style == 'sawtooth':
+        return 2 * (t / (2 * np.pi) - np.floor(0.5 + t / (2 * np.pi)))
+    else:
+        raise ValueError(f"Bad wave style: {wave_style}")
 
 # Play the given sound waveform using `sounddevice`.
 def play(sound):
