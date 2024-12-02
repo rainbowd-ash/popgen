@@ -129,6 +129,17 @@ def pick_notes(chord_root, n=4):
     position = p
     return notes
 
+def apply_envelope(wave):
+    total_samples = len(wave)
+    attack_len = int(total_samples * 0.1)  # 10% attack
+    release_len = int(total_samples * 0.1)  # 10% release
+    envelope = np.ones(total_samples)
+    if attack_len > 0:
+        envelope[:attack_len] = np.linspace(0, 1, attack_len)
+    if release_len > 0:
+        envelope[-release_len:] = np.linspace(1, 0, release_len)
+    return wave * envelope
+
 # Given a MIDI key number and an optional number of beats of
 # note duration, return a sine wave for that note.
 def make_note(key, n=1, wave_style='sine'):
@@ -137,15 +148,15 @@ def make_note(key, n=1, wave_style='sine'):
     t = np.linspace(0, 2 * np.pi * f * b / samplerate, b)
     
     if wave_style == 'sine':
-        return np.sin(t)
+        wave = np.sin(t)
     elif wave_style == 'square':
-        return np.sign(np.sin(t))
+        wave =  np.sign(np.sin(t))
     elif wave_style == 'triangle':
-        return 2 * np.abs(2 * (t / (2 * np.pi) - np.floor(t / (2 * np.pi) + 0.5))) - 1
+        wave =  2 * np.abs(2 * (t / (2 * np.pi) - np.floor(t / (2 * np.pi) + 0.5))) - 1
     elif wave_style == 'sawtooth':
-        return 2 * (t / (2 * np.pi) - np.floor(0.5 + t / (2 * np.pi)))
+        wave =  2 * (t / (2 * np.pi) - np.floor(0.5 + t / (2 * np.pi)))
     elif wave_style == 'white_noise':
-        return np.random.uniform(-1, 1, b)
+        wave =  np.random.uniform(-1, 1, b)
     elif wave_style == 'pink_noise':
         # Voss-McCartney algorithm
         white_noise = np.random.uniform(-1, 1, b)
@@ -158,9 +169,11 @@ def make_note(key, n=1, wave_style='sine'):
                 octave_vals[white_noise_pos] = np.random.uniform(-1, 1)
             pink_noise[i] = np.sum(octave_vals)
         # Normalize
-        return pink_noise / np.max(np.abs(pink_noise))
+        wave =  pink_noise / np.max(np.abs(pink_noise))
     else:
         raise ValueError(f"Bad wave style: {wave_style}")
+
+    return apply_envelope(wave)
 
 # Play the given sound waveform using `sounddevice`.
 def play(sound):
